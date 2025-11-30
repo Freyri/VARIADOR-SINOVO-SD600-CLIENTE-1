@@ -138,8 +138,10 @@ const slider = document.getElementById('sliderFreq');
 const valorSlider = document.getElementById('valorSlider');
 const inputFreq = document.getElementById('inputFreq');
 let enviarTimeout = null;
+
 const TELEGRAM_WORKER = "https://botdealarmasc1.freyricity123k.workers.dev/"; // <- tu URL de Worker
 let lastSentStatus = ""; // para evitar duplicar mensajes
+let inicializado = false; // <-- ignorar primer mensaje MQTT
 
 // =======================================================
 // 🟢 MQTT CONNECT
@@ -163,6 +165,12 @@ client.on("error", (err) => {
 // =======================================================
 client.on("message", (topic, message) => {
   try {
+    // --- ignorar primer mensaje al abrir la página ---
+    if(!inicializado){
+      inicializado = true;
+      return;
+    }
+
     const data = JSON.parse(message.toString());
 
     const freq = (data.H100 / 100).toFixed(2);
@@ -188,6 +196,7 @@ client.on("message", (topic, message) => {
       case "APAGADO": statusEmoji = "🔴"; break;
       case "ALARMADO": statusEmoji = "⚠️"; break;
     }
+
     // --- Enviar automáticamente al Telegram Worker ---
     let msgTelegram = "";
     switch(status){
@@ -269,8 +278,8 @@ fullscreenBtn.addEventListener("click", async () => {
     await document.exitFullscreen();
   }
 });
-
 </script>
+
 
 </body>
 </html>
