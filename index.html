@@ -182,8 +182,8 @@ client.on("message", (topic, message) => {
     // Actualizar estado de la máquina
     let statusEmoji = "❔";
     switch(status) {
-      case "ON": statusEmoji = "🟢"; break;
-      case "OFF": statusEmoji = "🔴"; break;
+      case "ENCENDIDO": statusEmoji = "🟢"; break;
+      case "APAGADO": statusEmoji = "🔴"; break;
       case "ALARMADO": statusEmoji = "⚠️"; break;
     }
 
@@ -259,3 +259,4 @@ fullscreenBtn.addEventListener("click", async () => {
 
 </body>
 </html>
+
