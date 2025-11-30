@@ -133,15 +133,14 @@ const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt");
 const texto = document.getElementById('texto');
 
 // --- SINCRONIZACIÓN SOLO UNA VEZ ---
-let sincronizado = false; // <-- bandera para sincronización HMI
+let sincronizado = false; // bandera para sincronización HMI
 const slider = document.getElementById('sliderFreq');
 const valorSlider = document.getElementById('valorSlider');
 const inputFreq = document.getElementById('inputFreq');
 let enviarTimeout = null;
 
-const TELEGRAM_WORKER = "https://botdealarmasc1.freyricity123k.workers.dev/"; // <- tu URL de Worker
-let lastSentStatus = ""; // para evitar duplicar mensajes
-let inicializado = false; // <-- ignorar primer mensaje MQTT
+const TELEGRAM_WORKER = "https://botdealarmasc1.freyricity123k.workers.dev/"; // tu URL de Worker
+let lastSentStatus = null; // <- guardará el último estado enviado al bot
 
 // =======================================================
 // 🟢 MQTT CONNECT
@@ -165,12 +164,6 @@ client.on("error", (err) => {
 // =======================================================
 client.on("message", (topic, message) => {
   try {
-    // --- ignorar primer mensaje al abrir la página ---
-    if(!inicializado){
-      inicializado = true;
-      return;
-    }
-
     const data = JSON.parse(message.toString());
 
     const freq = (data.H100 / 100).toFixed(2);
@@ -180,35 +173,23 @@ client.on("message", (topic, message) => {
     const hmi_freq = (data.H105 / 100).toFixed(2);
     const status = data.Status || "DESCONOCIDO";
 
-    // 🔹 Solo sincroniza **una vez** con el HMI
+    // 🔹 Sincronización inicial con HMI
     if (!sincronizado) {
       sincronizado = true;
       slider.value = hmi_freq;
       inputFreq.value = hmi_freq;
       valorSlider.innerText = `🔸 ${hmi_freq} Hz`;
       console.log("🔄 Sincronizado con HMI:", hmi_freq, "Hz");
+      // IMPORTANTE: no enviar mensaje al bot al abrir la página
+      lastSentStatus = status; 
     }
 
-    // Actualizar estado de la máquina
+    // Actualizar estado de la máquina en pantalla
     let statusEmoji = "❔";
     switch(status) {
       case "ENCENDIDO": statusEmoji = "🟢"; break;
       case "APAGADO": statusEmoji = "🔴"; break;
       case "ALARMADO": statusEmoji = "⚠️"; break;
-    }
-
-    // --- Enviar automáticamente al Telegram Worker ---
-    let msgTelegram = "";
-    switch(status){
-      case "ENCENDIDO": msgTelegram = "🚀 MOTOR ENCENDIDO"; break;
-      case "APAGADO":  msgTelegram = "🛑 MOTOR APAGADO"; break;
-      case "ALARMADO": msgTelegram = "⚠️ MOTOR ALARMADO"; break;
-    }
-
-    // Solo enviar si cambió el estado desde la última vez
-    if(msgTelegram && msgTelegram !== lastSentStatus){
-      fetch(TELEGRAM_WORKER + "/?msg=" + encodeURIComponent(msgTelegram));
-      lastSentStatus = msgTelegram; // actualizar estado
     }
 
     texto.innerText = 
@@ -217,6 +198,23 @@ client.on("message", (topic, message) => {
       `🔌 Voltaje: ${volt} V\n` +
       `🔋 Corriente: ${amp} A\n` +
       `💡 Potencia: ${pot} kW`;
+
+    // =======================================================
+    // 🟢 ENVIAR AL BOT SOLO SI CAMBIA EL STATUS
+    // =======================================================
+    if(status !== lastSentStatus){
+      let msgTelegram = "";
+      switch(status){
+        case "ENCENDIDO": msgTelegram = "🚀 MOTOR ENCENDIDO"; break;
+        case "APAGADO":  msgTelegram = "🛑 MOTOR APAGADO"; break;
+        case "ALARMADO": msgTelegram = "⚠️ MOTOR ALARMADO"; break;
+      }
+      if(msgTelegram){
+        fetch(TELEGRAM_WORKER + "/?msg=" + encodeURIComponent(msgTelegram));
+      }
+      lastSentStatus = status; // actualizar último estado enviado
+    }
+
   } catch(e) {
     console.error("Error parseando JSON:", e);
   }
@@ -250,20 +248,11 @@ slider.oninput = () => {
 // =======================================================
 inputFreq.addEventListener("blur", () => {
   let valor = parseFloat(inputFreq.value);
-
   if (isNaN(valor)) valor = 0;
-
-  // Limitar entre 0 y 60
   valor = Math.min(60, Math.max(0, valor));
-
-  // Formato fijo 2 decimales
   inputFreq.value = valor.toFixed(2);
-
-  // Sincronizar slider
   slider.value = valor;
   valorSlider.innerText = `🔸 ${valor.toFixed(2)} Hz`;
-
-  // Enviar por MQTT
   if (client.connected) client.publish(topicControl, valor.toFixed(2));
 });
 
@@ -279,6 +268,7 @@ fullscreenBtn.addEventListener("click", async () => {
   }
 });
 </script>
+
 
 
 </body>
