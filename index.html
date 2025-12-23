@@ -139,9 +139,6 @@ const valorSlider = document.getElementById('valorSlider');
 const inputFreq = document.getElementById('inputFreq');
 let enviarTimeout = null;
 
-const TELEGRAM_WORKER = "https://botdealarmasc1.freyricity123k.workers.dev/"; // tu URL de Worker
-let lastSentStatus = null; // <- guardará el último estado enviado al bot
-
 // =======================================================
 // 🟢 MQTT CONNECT
 // =======================================================
@@ -198,23 +195,6 @@ client.on("message", (topic, message) => {
       `🔌 Voltaje: ${volt} V\n` +
       `🔋 Corriente: ${amp} A\n` +
       `💡 Potencia: ${pot} kW`;
-
-    // =======================================================
-    // 🟢 ENVIAR AL BOT SOLO SI CAMBIA EL STATUS
-    // =======================================================
-    if(status !== lastSentStatus){
-      let msgTelegram = "";
-      switch(status){
-        case "ENCENDIDO": msgTelegram = "🚀 MOTOR ENCENDIDO"; break;
-        case "APAGADO":  msgTelegram = "🛑 MOTOR APAGADO"; break;
-        case "ALARMADO": msgTelegram = "⚠️ MOTOR ALARMADO"; break;
-      }
-      if(msgTelegram){
-        fetch(TELEGRAM_WORKER + "/?msg=" + encodeURIComponent(msgTelegram));
-      }
-      lastSentStatus = status; // actualizar último estado enviado
-    }
-
   } catch(e) {
     console.error("Error parseando JSON:", e);
   }
